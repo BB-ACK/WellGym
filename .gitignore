@@ -2,9 +2,13 @@ node_modules/
 dist/
 dev-dist/
 .vite/
+backend/node_modules/
+backend/dist/
+backend/coverage/
+*.local
 *.tsbuildinfo
 .env
 .env.*
 !.env.example
-coverage/
+npm-debug.log*
 *.log
