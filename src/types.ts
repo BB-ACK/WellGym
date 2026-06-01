@@ -55,3 +55,64 @@ export type DietPlan = {
   meals: Meal[]
   tips: string[]
 }
+
+export type User = {
+  id: string
+  email: string
+  name: string | null
+}
+
+export type BackendWorkoutLog = {
+  id: string
+  userId: string
+  workoutDate: string
+  sessionTitle: string
+  condition: string | null
+  memo: string | null
+  createdAt: string
+  updatedAt: string
+  exercises: Array<{
+    id: string
+    workoutLogId: string
+    name: string
+    bodyPart: string
+    sortOrder: number
+    sets: Array<{
+      id: string
+      exerciseId: string
+      weightKg: number | null
+      reps: number
+      sortOrder: number
+    }>
+  }>
+}
+
+export type BackendInbody = {
+  id: string
+  userId: string
+  heightCm: number
+  weightKg: number
+  skeletalMuscleKg: number
+  bodyFatKg: number
+  bodyFatPercent: number
+  bmi: number
+  measuredAt: string
+  createdAt: string
+}
+
+export type BackendDietPlan = {
+  dailyCalories: number
+  macroRatio: {
+    carbohydrate: number
+    protein: number
+    fat: number
+  }
+  recommendedMeals: Array<{
+    mealType: string
+    foods: string[]
+    calories: number
+    notes: string
+  }>
+  managementTips: string[]
+  rationale: string
+}
