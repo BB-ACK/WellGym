@@ -12,3 +12,6 @@ backend/coverage/
 !.env.example
 npm-debug.log*
 *.log
+*.local
+*.tsbuildinfo
+npm-debug.log*
