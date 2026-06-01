@@ -1,6 +1,6 @@
 import type { DietPlan, InbodyEntry, WorkoutSession } from '../types'
 
-export const workoutColors = ['#0f766e', '#ef6f61', '#4f9fd8', '#f6b64d']
+export const workoutColors = ['#0f766e', '#e9685b', '#377fb8', '#efad3f']
 
 export const mockWorkouts: WorkoutSession[] = [
   {
@@ -22,16 +22,6 @@ export const mockWorkouts: WorkoutSession[] = [
           { id: 's-1', kg: 22, reps: 10 },
           { id: 's-2', kg: 24, reps: 8 }
         ]
-      },
-      {
-        id: 'e-2',
-        name: '사이드 레터럴 레이즈',
-        category: '어깨',
-        equipment: '덤벨',
-        sets: [
-          { id: 's-3', kg: 8, reps: 15 },
-          { id: 's-4', kg: 8, reps: 14 }
-        ]
       }
     ]
   },
@@ -43,38 +33,16 @@ export const mockWorkouts: WorkoutSession[] = [
     weight: 73.1,
     condition: '보통',
     memo: '스쿼트 자세 유지.',
-    color: '#ef6f61',
+    color: '#e9685b',
     exercises: [
       {
-        id: 'e-3',
+        id: 'e-2',
         name: '스쿼트',
         category: '하체',
         equipment: '바벨',
         sets: [
-          { id: 's-5', kg: 80, reps: 8 },
-          { id: 's-6', kg: 90, reps: 6 }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'w-3',
-    date: '2026-06-11',
-    title: '등 운동',
-    time: '19:10',
-    weight: 72.9,
-    condition: '회복',
-    memo: '랫풀다운 가동 범위 체크.',
-    color: '#4f9fd8',
-    exercises: [
-      {
-        id: 'e-4',
-        name: '랫풀다운',
-        category: '등',
-        equipment: '머신',
-        sets: [
-          { id: 's-7', kg: 55, reps: 12 },
-          { id: 's-8', kg: 60, reps: 10 }
+          { id: 's-3', kg: 80, reps: 8 },
+          { id: 's-4', kg: 90, reps: 6 }
         ]
       }
     ]
@@ -128,6 +96,6 @@ export const mockDiet: DietPlan = {
   tips: [
     '운동 후 60분 안에 단백질 25g 이상을 먼저 채우세요.',
     '수분은 체중 1kg당 35ml를 기준으로 나눠 마시면 좋습니다.',
-    '체지방률 감량 주간에는 저녁 탄수화물을 10~15% 줄여 보세요.'
+    '감량 주간에는 저녁 탄수화물을 10~15% 줄여 보세요.'
   ]
 }
