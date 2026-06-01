@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  sessions     AuthSession[]
+  inbodies     Inbody[]
+  workoutLogs  WorkoutLog[]
+
+  @@index([createdAt])
+}
+
+model AuthSession {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Inbody {
+  id             String   @id @default(cuid())
+  userId         String
+  heightCm       Float
+  weightKg       Float
+  skeletalMuscleKg Float
+  bodyFatKg      Float
+  bodyFatPercent Float
+  bmi            Float
+  measuredAt     DateTime
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, measuredAt])
+}
+
+model WorkoutLog {
+  id           String            @id @default(cuid())
+  userId       String
+  workoutDate  DateTime
+  sessionTitle String
+  condition    String?
+  memo         String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises    WorkoutExercise[]
+
+  @@index([userId, workoutDate])
+}
+
+model WorkoutExercise {
+  id           String       @id @default(cuid())
+  workoutLogId String
+  name         String
+  bodyPart     String
+  sortOrder    Int          @default(0)
+  workoutLog   WorkoutLog   @relation(fields: [workoutLogId], references: [id], onDelete: Cascade)
+  sets         WorkoutSet[]
+
+  @@index([workoutLogId, sortOrder])
+}
+
+model WorkoutSet {
+  id         String          @id @default(cuid())
+  exerciseId String
+  weightKg   Float?
+  reps       Int
+  sortOrder  Int             @default(0)
+  exercise   WorkoutExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([exerciseId, sortOrder])
+}
