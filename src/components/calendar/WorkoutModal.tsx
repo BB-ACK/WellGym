@@ -13,10 +13,12 @@ type WorkoutModalProps = {
   onDelete?: () => void
 }
 
+const bodyPartOptions = ['가슴', '어깨', '등', '하체', '팔', '복근']
+
 const emptyExercise = (): ExerciseLog => ({
   id: crypto.randomUUID(),
   name: '',
-  category: '',
+  category: '가슴',
   equipment: '',
   sets: [{ id: crypto.randomUUID(), kg: 0, reps: 0 }]
 })
@@ -24,6 +26,7 @@ const emptyExercise = (): ExerciseLog => ({
 const cloneExercises = (exercises: ExerciseLog[]) =>
   exercises.map((exercise) => ({
     ...exercise,
+    category: bodyPartOptions.includes(exercise.category) ? exercise.category : '가슴',
     sets: exercise.sets.map((set) => ({ ...set }))
   }))
 
@@ -74,6 +77,13 @@ export function WorkoutModal({ date, workout, onClose, onSave, onDelete }: Worko
           : item
       )
     )
+  }
+
+  const addSetFromFirst = (exercise: ExerciseLog) => {
+    const firstSet = exercise.sets[0] ?? { kg: 0, reps: 0 }
+    updateExercise(exercise.id, {
+      sets: [...exercise.sets, { id: crypto.randomUUID(), kg: firstSet.kg, reps: firstSet.reps }]
+    })
   }
 
   const save = () => {
@@ -128,7 +138,7 @@ export function WorkoutModal({ date, workout, onClose, onSave, onDelete }: Worko
               <h3 className="font-black">운동 목록</h3>
               <button type="button" onClick={() => setExercises((items) => [...items, emptyExercise()])} className="flex min-h-10 items-center gap-2 rounded-full bg-white px-3 text-sm font-black text-mint shadow-line">
                 <Plus size={16} />
-                추가
+                운동 추가
               </button>
             </div>
 
@@ -136,7 +146,18 @@ export function WorkoutModal({ date, workout, onClose, onSave, onDelete }: Worko
               <div key={exercise.id} className="rounded-2xl bg-white p-3 shadow-line">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="운동 이름" value={exercise.name} onChange={(event) => updateExercise(exercise.id, { name: event.target.value })} />
-                  <Field label="카테고리" value={exercise.category} onChange={(event) => updateExercise(exercise.id, { category: event.target.value })} />
+                  <label className="grid gap-2 text-sm font-semibold text-ink">
+                    <span>카테고리</span>
+                    <select
+                      value={exercise.category}
+                      onChange={(event) => updateExercise(exercise.id, { category: event.target.value })}
+                      className="min-h-12 rounded-lg border border-ink/10 bg-white px-3 outline-none focus:border-mint"
+                    >
+                      {bodyPartOptions.map((bodyPart) => (
+                        <option key={bodyPart} value={bodyPart}>{bodyPart}</option>
+                      ))}
+                    </select>
+                  </label>
                   <Field label="기구" value={exercise.equipment} onChange={(event) => updateExercise(exercise.id, { equipment: event.target.value })} />
                 </div>
                 <div className="mt-3 grid gap-2">
@@ -147,8 +168,8 @@ export function WorkoutModal({ date, workout, onClose, onSave, onDelete }: Worko
                       <Field label="횟수" type="number" value={set.reps} onChange={(event) => updateSet(exercise.id, set.id, { reps: Number(event.target.value) })} />
                     </div>
                   ))}
-                  <button type="button" onClick={() => updateExercise(exercise.id, { sets: [...exercise.sets, { id: crypto.randomUUID(), kg: 0, reps: 0 }] })} className="min-h-10 rounded-xl bg-paper text-sm font-black text-mint">
-                    세트 추가
+                  <button type="button" onClick={() => addSetFromFirst(exercise)} className="min-h-10 rounded-xl bg-paper text-sm font-black text-mint">
+                    첫 세트 값으로 세트 추가
                   </button>
                 </div>
                 {exercises.length > 1 ? (

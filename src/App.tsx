@@ -9,7 +9,7 @@ import { DietDashboard } from './components/diet/DietDashboard'
 import { InbodyForm } from './components/inbody/InbodyForm'
 import { useAuthStore } from './store/useAuthStore'
 import { useWellGymStore } from './store/useWellGymStore'
-import type { WorkoutFeedback, WorkoutSession } from './types'
+import type { SavedWorkoutFeedback, WorkoutFeedback, WorkoutSession } from './types'
 
 export type ViewKey = 'calendar' | 'inbody' | 'diet'
 
@@ -18,6 +18,7 @@ export default function App() {
   const [modalDate, setModalDate] = useState<string | null>(null)
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSession | null>(null)
   const [feedbackModal, setFeedbackModal] = useState<{ feedback: WorkoutFeedback; workout?: WorkoutSession; saved?: boolean } | null>(null)
+  const [savedFeedbackModal, setSavedFeedbackModal] = useState<SavedWorkoutFeedback | null>(null)
   const { user, token, logout } = useAuthStore()
   const {
     workouts,
@@ -35,6 +36,7 @@ export default function App() {
     generateDiet,
     generateFeedback,
     saveFeedback,
+    deleteSavedFeedback,
     markSynced
   } = useWellGymStore()
 
@@ -94,9 +96,10 @@ export default function App() {
           }}
           onGenerateFeedback={async (workout) => {
             if (!token) return
-            const result = await generateFeedback(token, workout?.id)
+            const result = await generateFeedback(token, workout.id)
             if (result) setFeedbackModal({ feedback: result, workout })
           }}
+          onOpenSavedFeedback={setSavedFeedbackModal}
         />
       ) : null}
       {activeView === 'inbody' ? (
@@ -150,6 +153,14 @@ export default function App() {
             saveFeedback(feedbackModal.feedback, user.id, feedbackModal.workout)
             setFeedbackModal((current) => (current ? { ...current, saved: true } : current))
           }}
+        />
+      ) : null}
+      {savedFeedbackModal ? (
+        <FeedbackModal
+          feedback={savedFeedbackModal}
+          readOnly
+          onClose={() => setSavedFeedbackModal(null)}
+          onDelete={() => deleteSavedFeedback(savedFeedbackModal.id)}
         />
       ) : null}
       <InstallPrompt />
