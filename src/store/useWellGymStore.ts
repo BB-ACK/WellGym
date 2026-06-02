@@ -35,6 +35,7 @@ type WellGymState = {
   }) => Promise<void>
   generateFeedback: (token: string, workoutLogId?: string) => Promise<WorkoutFeedback | null>
   saveFeedback: (feedback: WorkoutFeedback, userId: string, workout?: WorkoutSession) => void
+  deleteSavedFeedback: (feedbackId: string) => void
   markSynced: () => void
   clearError: () => void
 }
@@ -232,10 +233,18 @@ export const useWellGymStore = create<WellGymState>()(
               userId,
               workoutLogId: workout?.id,
               workoutTitle: workout?.title,
+              workoutDate: workout?.date,
+              workoutTime: workout?.time,
               createdAt: new Date().toISOString()
             },
             ...state.savedFeedbacks
           ],
+          error: ''
+        }))
+      },
+      deleteSavedFeedback: (feedbackId) => {
+        set((state) => ({
+          savedFeedbacks: state.savedFeedbacks.filter((feedback) => feedback.id !== feedbackId),
           error: ''
         }))
       },

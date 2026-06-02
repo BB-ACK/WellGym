@@ -8,7 +8,8 @@ type WorkoutCalendarProps = {
   isLoading: boolean
   onNewWorkout: (date: string) => void
   onOpenWorkout: (workout: WorkoutSession) => void
-  onGenerateFeedback: (workout?: WorkoutSession) => void
+  onGenerateFeedback: (workout: WorkoutSession) => void
+  onOpenSavedFeedback: (feedback: SavedWorkoutFeedback) => void
 }
 
 const dayNames = ['월', '화', '수', '목', '금', '토', '일']
@@ -19,15 +20,28 @@ const toDateKey = (date: Date) => {
   return `${date.getFullYear()}-${month}-${day}`
 }
 
+const byRecentWorkout = (a: WorkoutSession, b: WorkoutSession) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`)
+
 export function WorkoutCalendar({
   workouts,
   savedFeedbacks,
   isLoading,
   onNewWorkout,
   onOpenWorkout,
-  onGenerateFeedback
+  onGenerateFeedback,
+  onOpenSavedFeedback
 }: WorkoutCalendarProps) {
   const [monthDate, setMonthDate] = useState(new Date(2026, 5, 1))
+  const syncedWorkouts = useMemo(() => {
+    const monthPrefix = `${monthDate.getFullYear()}-${`${monthDate.getMonth() + 1}`.padStart(2, '0')}`
+    return workouts
+      .filter((workout) => !workout.pendingSync && workout.date.startsWith(monthPrefix))
+      .sort(byRecentWorkout)
+  }, [monthDate, workouts])
+  const [selectedFeedbackWorkoutId, setSelectedFeedbackWorkoutId] = useState('')
+
+  const selectedFeedbackWorkout =
+    syncedWorkouts.find((workout) => workout.id === selectedFeedbackWorkoutId) ?? syncedWorkouts[0]
 
   const days = useMemo(() => {
     const year = monthDate.getFullYear()
@@ -52,8 +66,6 @@ export function WorkoutCalendar({
       return acc
     }, {})
   }, [workouts])
-
-  const latestSyncedWorkout = workouts.find((workout) => !workout.pendingSync)
 
   return (
     <section className="grid gap-5">
@@ -136,29 +148,69 @@ export function WorkoutCalendar({
               <Sparkles size={18} className="text-saffron" />
               AI 운동 피드백
             </div>
-            <p className="mt-3 text-sm font-bold text-white/60">최근 운동을 분석하고 결과를 팝업으로 확인합니다.</p>
+            <p className="mt-3 text-sm font-bold text-white/60">현재 보고 있는 월의 운동 일지 중에서 피드백 받을 항목을 선택합니다.</p>
+
+            <label className="mt-4 grid gap-2 text-sm font-black">
+              운동 선택
+              <select
+                value={selectedFeedbackWorkout?.id ?? ''}
+                disabled={!syncedWorkouts.length || isLoading}
+                onChange={(event) => setSelectedFeedbackWorkoutId(event.target.value)}
+                className="min-h-11 rounded-xl border border-white/10 bg-white px-3 text-sm font-bold text-ink outline-none disabled:opacity-50"
+              >
+                {syncedWorkouts.length ? (
+                  syncedWorkouts.map((workout) => (
+                    <option key={workout.id} value={workout.id}>
+                      {workout.date} {workout.time} · {workout.title}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">이번 달에 저장된 운동 일지가 없습니다</option>
+                )}
+              </select>
+            </label>
+
+            {selectedFeedbackWorkout ? (
+              <div className="mt-3 rounded-xl bg-white/10 p-3 text-sm font-bold text-white/75">
+                <p>{selectedFeedbackWorkout.title}</p>
+                <p className="mt-1 text-xs text-white/50">{selectedFeedbackWorkout.date} {selectedFeedbackWorkout.time}</p>
+              </div>
+            ) : null}
+
             <button
               type="button"
-              disabled={isLoading || !latestSyncedWorkout}
-              onClick={() => onGenerateFeedback(latestSyncedWorkout)}
+              disabled={isLoading || !selectedFeedbackWorkout}
+              onClick={() => selectedFeedbackWorkout && onGenerateFeedback(selectedFeedbackWorkout)}
               className="mt-4 min-h-11 w-full rounded-xl bg-white text-sm font-black text-ink disabled:opacity-50"
             >
-              {isLoading ? '분석 중...' : '피드백 생성'}
+              {isLoading ? '분석 중...' : '선택한 일지 피드백 생성'}
             </button>
           </div>
 
           {savedFeedbacks.length ? (
             <div className="rounded-2xl bg-white p-4 shadow-line">
               <h3 className="font-black">저장된 피드백</h3>
+              <p className="mt-1 text-xs font-bold text-ink/45">카드를 누르면 피드백 상세 내용을 다시 확인할 수 있습니다.</p>
               <div className="mt-3 grid gap-2">
-                {savedFeedbacks.slice(0, 3).map((feedback) => (
-                  <div key={feedback.id} className="rounded-xl bg-paper p-3">
+                {savedFeedbacks.slice(0, 5).map((feedback) => (
+                  <button
+                    key={feedback.id}
+                    type="button"
+                    onClick={() => onOpenSavedFeedback(feedback)}
+                    className="rounded-xl bg-paper p-3 text-left transition hover:bg-mint/10 active:scale-[0.99]"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-black">{feedback.workoutTitle ?? '운동 피드백'}</p>
                       <span className="rounded-full bg-mint/10 px-2 py-1 text-xs font-black text-mint">{feedback.overallScore}</span>
                     </div>
+                    <p className="mt-1 text-xs font-black text-ink/45">
+                      운동일: {feedback.workoutDate ?? '기록 없음'} {feedback.workoutTime ?? ''}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-ink/45">
+                      저장일: {new Date(feedback.createdAt).toLocaleDateString('ko-KR')}
+                    </p>
                     <p className="mt-1 line-clamp-2 text-xs font-bold leading-5 text-ink/60">{feedback.summary}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
