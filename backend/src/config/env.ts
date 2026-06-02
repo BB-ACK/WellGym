@@ -10,8 +10,11 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters.").optional(),
   JWT_EXPIRES_IN: z.string().default("7d"),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
+  AI_PROVIDER: z.enum(["openai", "gemini"]).optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default("gpt-4o-2024-08-06"),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
   MEMORY_AUTH_STORE: z
     .enum(["true", "false"])
     .default("false")
@@ -38,6 +41,7 @@ const parsedEnv = envSchema.parse(process.env);
 
 export const env = {
   ...parsedEnv,
+  AI_PROVIDER: parsedEnv.AI_PROVIDER ?? (parsedEnv.GEMINI_API_KEY ? "gemini" : "openai"),
   JWT_SECRET: parsedEnv.JWT_SECRET!
 };
 
