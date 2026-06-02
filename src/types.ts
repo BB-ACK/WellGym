@@ -42,6 +42,7 @@ export type WorkoutFeedback = {
 
 export type SavedWorkoutFeedback = WorkoutFeedback & {
   id: string
+  userId: string
   workoutLogId?: string
   workoutTitle?: string
   createdAt: string

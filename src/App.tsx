@@ -38,6 +38,8 @@ export default function App() {
     markSynced
   } = useWellGymStore()
 
+  const currentUserFeedbacks = savedFeedbacks.filter((feedback) => feedback.userId === user?.id)
+
   useEffect(() => {
     if (token) void loadFromBackend(token)
   }, [loadFromBackend, token])
@@ -80,7 +82,7 @@ export default function App() {
       {activeView === 'calendar' ? (
         <WorkoutCalendar
           workouts={workouts}
-          savedFeedbacks={savedFeedbacks}
+          savedFeedbacks={currentUserFeedbacks}
           isLoading={isLoading}
           onNewWorkout={(date) => {
             setSelectedWorkout(null)
@@ -145,7 +147,7 @@ export default function App() {
           isSaved={feedbackModal.saved}
           onClose={() => setFeedbackModal(null)}
           onSave={() => {
-            saveFeedback(feedbackModal.feedback, feedbackModal.workout)
+            saveFeedback(feedbackModal.feedback, user.id, feedbackModal.workout)
             setFeedbackModal((current) => (current ? { ...current, saved: true } : current))
           }}
         />
