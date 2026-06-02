@@ -12,3 +12,8 @@ export const dietRequestSchema = z.object({
 export const feedbackRequestSchema = z.object({
   workoutLogId: z.string().min(1).optional()
 });
+
+export const inbodyOcrRequestSchema = z.object({
+  imageBase64: z.string().min(100),
+  mimeType: z.string().regex(/^image\/(png|jpe?g|webp)$/)
+});

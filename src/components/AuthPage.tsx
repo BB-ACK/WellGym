@@ -4,22 +4,37 @@ import { useAuthStore } from '../store/useAuthStore'
 
 export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [name, setName] = useState('김지암')
-  const [email, setEmail] = useState('wellgym@example.com')
-  const [password, setPassword] = useState('password123')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [localError, setLocalError] = useState('')
   const { login, signup, isLoading, error, clearError } = useAuthStore()
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     clearError()
+    setLocalError('')
+
+    if (mode === 'signup' && name.trim().length < 1) {
+      setLocalError('이름을 입력해 주세요.')
+      return
+    }
+
+    if (mode === 'signup' && password.length < 8) {
+      setLocalError('비밀번호는 8자 이상이어야 합니다.')
+      return
+    }
+
     try {
       if (mode === 'login') await login(email, password)
-      else await signup(name, email, password)
+      else await signup(name.trim(), email.trim(), password)
     } catch {
       // Store-level error state drives the inline message.
     }
   }
+
+  const visibleError = localError || error
 
   return (
     <main className="min-h-screen bg-paper px-5 py-6 text-ink">
@@ -29,7 +44,7 @@ export function AuthPage() {
             <Dumbbell size={20} />
             WellGym
           </div>
-          <h1 className="max-w-xl text-6xl font-black leading-[0.95]">오늘의 운동을 더 선명하게.</h1>
+          <h1 className="max-w-xl text-6xl font-black leading-[0.95]">오늘의 운동을 선명하게.</h1>
           <div className="mt-8 grid max-w-md grid-cols-3 gap-3">
             {[
               ['API', '실제 로그인'],
@@ -58,14 +73,22 @@ export function AuthPage() {
           <div className="mb-6 grid grid-cols-2 rounded-2xl bg-paper p-1">
             <button
               type="button"
-              onClick={() => setMode('login')}
+              onClick={() => {
+                setMode('login')
+                setLocalError('')
+                clearError()
+              }}
               className={`min-h-11 rounded-xl text-sm font-black ${mode === 'login' ? 'bg-white text-mint shadow-line' : 'text-ink/50'}`}
             >
               로그인
             </button>
             <button
               type="button"
-              onClick={() => setMode('signup')}
+              onClick={() => {
+                setMode('signup')
+                setLocalError('')
+                clearError()
+              }}
               className={`min-h-11 rounded-xl text-sm font-black ${mode === 'signup' ? 'bg-white text-mint shadow-line' : 'text-ink/50'}`}
             >
               회원가입
@@ -103,8 +126,9 @@ export function AuthPage() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </span>
+              {mode === 'signup' ? <span className="text-xs font-bold text-ink/45">8자 이상 입력해 주세요.</span> : null}
             </label>
-            {error ? <p className="rounded-xl bg-coral/10 px-3 py-2 text-sm font-bold text-coral">{error}</p> : null}
+            {visibleError ? <p className="rounded-xl bg-coral/10 px-3 py-2 text-sm font-bold text-coral">{visibleError}</p> : null}
             <button type="submit" disabled={isLoading} className="min-h-12 rounded-xl bg-ink font-black text-white shadow-soft disabled:opacity-60">
               {isLoading ? '처리 중...' : mode === 'login' ? '시작하기' : '계정 만들기'}
             </button>

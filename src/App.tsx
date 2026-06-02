@@ -2,31 +2,39 @@ import { useEffect, useState } from 'react'
 import { AppShell } from './components/AppShell'
 import { AuthPage } from './components/AuthPage'
 import { InstallPrompt } from './components/InstallPrompt'
+import { FeedbackModal } from './components/calendar/FeedbackModal'
 import { WorkoutCalendar } from './components/calendar/WorkoutCalendar'
 import { WorkoutModal } from './components/calendar/WorkoutModal'
 import { DietDashboard } from './components/diet/DietDashboard'
 import { InbodyForm } from './components/inbody/InbodyForm'
 import { useAuthStore } from './store/useAuthStore'
 import { useWellGymStore } from './store/useWellGymStore'
+import type { WorkoutFeedback, WorkoutSession } from './types'
 
 export type ViewKey = 'calendar' | 'inbody' | 'diet'
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewKey>('calendar')
   const [modalDate, setModalDate] = useState<string | null>(null)
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSession | null>(null)
+  const [feedbackModal, setFeedbackModal] = useState<{ feedback: WorkoutFeedback; workout?: WorkoutSession; saved?: boolean } | null>(null)
   const { user, token, logout } = useAuthStore()
   const {
     workouts,
     inbodyEntries,
     dietPlan,
-    feedback,
+    savedFeedbacks,
     isLoading,
     error,
     loadFromBackend,
     addWorkout,
+    updateWorkout,
+    deleteWorkout,
     addInbody,
+    analyzeInbodyPhoto,
     generateDiet,
     generateFeedback,
+    saveFeedback,
     markSynced
   } = useWellGymStore()
 
@@ -72,13 +80,31 @@ export default function App() {
       {activeView === 'calendar' ? (
         <WorkoutCalendar
           workouts={workouts}
-          feedback={feedback}
+          savedFeedbacks={savedFeedbacks}
           isLoading={isLoading}
-          onNewWorkout={setModalDate}
-          onGenerateFeedback={(workoutLogId) => token && generateFeedback(token, workoutLogId)}
+          onNewWorkout={(date) => {
+            setSelectedWorkout(null)
+            setModalDate(date)
+          }}
+          onOpenWorkout={(workout) => {
+            setSelectedWorkout(workout)
+            setModalDate(workout.date)
+          }}
+          onGenerateFeedback={async (workout) => {
+            if (!token) return
+            const result = await generateFeedback(token, workout?.id)
+            if (result) setFeedbackModal({ feedback: result, workout })
+          }}
         />
       ) : null}
-      {activeView === 'inbody' ? <InbodyForm latest={inbodyEntries[0]} onSave={(entry) => addInbody(entry, token)} /> : null}
+      {activeView === 'inbody' ? (
+        <InbodyForm
+          latest={inbodyEntries[0]}
+          isLoading={isLoading}
+          onAnalyzePhoto={(input) => (token ? analyzeInbodyPhoto(token, input) : Promise.resolve(null))}
+          onSave={(entry) => addInbody(entry, token)}
+        />
+      ) : null}
       {activeView === 'diet' ? (
         <DietDashboard
           plan={dietPlan}
@@ -89,7 +115,40 @@ export default function App() {
       ) : null}
 
       {modalDate ? (
-        <WorkoutModal date={modalDate} onClose={() => setModalDate(null)} onSave={(workout) => addWorkout(workout, token)} />
+        <WorkoutModal
+          date={modalDate}
+          workout={selectedWorkout}
+          onClose={() => {
+            setModalDate(null)
+            setSelectedWorkout(null)
+          }}
+          onSave={(workout) => {
+            if (selectedWorkout) {
+              void updateWorkout(selectedWorkout.id, workout, token)
+            } else {
+              void addWorkout(workout, token)
+            }
+          }}
+          onDelete={
+            selectedWorkout
+              ? () => {
+                  void deleteWorkout(selectedWorkout.id, token)
+                }
+              : undefined
+          }
+        />
+      ) : null}
+      {feedbackModal ? (
+        <FeedbackModal
+          feedback={feedbackModal.feedback}
+          workout={feedbackModal.workout}
+          isSaved={feedbackModal.saved}
+          onClose={() => setFeedbackModal(null)}
+          onSave={() => {
+            saveFeedback(feedbackModal.feedback, feedbackModal.workout)
+            setFeedbackModal((current) => (current ? { ...current, saved: true } : current))
+          }}
+        />
       ) : null}
       <InstallPrompt />
     </AppShell>

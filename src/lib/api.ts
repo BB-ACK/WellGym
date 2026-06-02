@@ -4,6 +4,8 @@ import type {
   BackendWorkoutLog,
   DietPlan,
   InbodyEntry,
+  InbodyOcrResult,
+  WorkoutFeedback,
   WorkoutSession
 } from '../types'
 
@@ -33,10 +35,29 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const payload = response.status === 204 ? null : await response.json().catch(() => null)
 
   if (!response.ok) {
-    throw new Error(payload?.message ?? '요청 처리 중 오류가 발생했습니다.')
+    throw new Error(getErrorMessage(payload))
   }
 
   return payload as T
+}
+
+function getErrorMessage(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return '요청 처리 중 오류가 발생했습니다.'
+
+  const message = 'message' in payload && typeof payload.message === 'string' ? payload.message : ''
+  const details = 'details' in payload ? payload.details : null
+
+  if (details && typeof details === 'object' && 'fieldErrors' in details) {
+    const fieldErrors = details.fieldErrors
+    if (fieldErrors && typeof fieldErrors === 'object') {
+      const errors = Object.values(fieldErrors)
+        .flatMap((value) => (Array.isArray(value) ? value : []))
+        .filter((value): value is string => typeof value === 'string')
+      if (errors.length) return errors.join(' ')
+    }
+  }
+
+  return message || '요청 처리 중 오류가 발생했습니다.'
 }
 
 export type AuthResponse = {
@@ -70,6 +91,19 @@ export const api = {
       body: workoutToPayload(workout)
     })
   },
+  updateWorkout(token: string, workoutId: string, workout: WorkoutSession) {
+    return request<BackendWorkoutLog>(`/api/workout/logs/${workoutId}`, {
+      token,
+      method: 'PUT',
+      body: workoutToPayload(workout)
+    })
+  },
+  deleteWorkout(token: string, workoutId: string) {
+    return request<null>(`/api/workout/logs/${workoutId}`, {
+      token,
+      method: 'DELETE'
+    })
+  },
   inbodyHistory(token: string) {
     return request<BackendInbody[]>('/api/inbody', { token })
   },
@@ -91,6 +125,13 @@ export const api = {
       }
     })
   },
+  analyzeInbodyPhoto(token: string, input: { imageBase64: string; mimeType: string }) {
+    return request<InbodyOcrResult>('/api/ai/inbody-ocr', {
+      token,
+      method: 'POST',
+      body: input
+    })
+  },
   diet(token: string, input: {
     goalWeightKg: number
     periodWeeks?: number
@@ -101,7 +142,7 @@ export const api = {
     return request<BackendDietPlan>('/api/ai/diet', { token, method: 'POST', body: input })
   },
   feedback(token: string, workoutLogId?: string) {
-    return request<unknown>('/api/ai/feedback', {
+    return request<WorkoutFeedback>('/api/ai/feedback', {
       token,
       method: 'POST',
       body: { workoutLogId }
@@ -118,7 +159,7 @@ export function backendWorkoutToSession(log: BackendWorkoutLog, index = 0): Work
     id: log.id,
     date: log.workoutDate.slice(0, 10),
     title: log.sessionTitle,
-    time: new Date(log.workoutDate).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+    time: toTimeInputValue(log.workoutDate),
     weight: 0,
     condition: (log.condition as WorkoutSession['condition']) || '보통',
     memo: log.memo ?? '',
@@ -169,8 +210,9 @@ export function backendDietToPlan(diet: BackendDietPlan): DietPlan {
 }
 
 function workoutToPayload(workout: WorkoutSession) {
+  const time = normalizeTimeInput(workout.time)
   return {
-    workoutDate: `${workout.date}T${workout.time || '00:00'}:00.000Z`,
+    workoutDate: `${workout.date}T${time}:00.000Z`,
     sessionTitle: workout.title,
     condition: workout.condition,
     memo: workout.memo,
@@ -183,4 +225,31 @@ function workoutToPayload(workout: WorkoutSession) {
       }))
     }))
   }
+}
+
+function toTimeInputValue(dateValue: string) {
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return '00:00'
+
+  const hours = `${date.getHours()}`.padStart(2, '0')
+  const minutes = `${date.getMinutes()}`.padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+function normalizeTimeInput(value: string) {
+  const directMatch = value.match(/^(\d{1,2}):(\d{2})/)
+  if (directMatch) {
+    return `${directMatch[1].padStart(2, '0')}:${directMatch[2]}`
+  }
+
+  const koreanMatch = value.match(/(오전|오후)\s*(\d{1,2}):(\d{2})/)
+  if (koreanMatch) {
+    const meridiem = koreanMatch[1]
+    let hours = Number(koreanMatch[2])
+    if (meridiem === '오후' && hours < 12) hours += 12
+    if (meridiem === '오전' && hours === 12) hours = 0
+    return `${`${hours}`.padStart(2, '0')}:${koreanMatch[3]}`
+  }
+
+  return '00:00'
 }

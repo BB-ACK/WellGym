@@ -25,6 +25,28 @@ export type WorkoutSession = {
   pendingSync?: boolean
 }
 
+export type WorkoutFeedback = {
+  overallScore: number
+  summary: string
+  volumeAnalysis: {
+    totalSets: number
+    estimatedVolumeKg: number
+    dominantBodyParts: string[]
+    comment: string
+  }
+  strengths: string[]
+  cautions: string[]
+  nextWorkoutSuggestions: string[]
+  recoveryTips: string[]
+}
+
+export type SavedWorkoutFeedback = WorkoutFeedback & {
+  id: string
+  workoutLogId?: string
+  workoutTitle?: string
+  createdAt: string
+}
+
 export type InbodyEntry = {
   id: string
   date: string
@@ -36,6 +58,18 @@ export type InbodyEntry = {
   bodyFatRate: number
   bmi: number
   pendingSync?: boolean
+}
+
+export type InbodyOcrResult = {
+  measuredAt?: string
+  weightKg?: number
+  heightCm?: number
+  skeletalMuscleKg?: number
+  bodyFatKg?: number
+  bodyFatPercent?: number
+  bmi?: number
+  confidence: number
+  notes?: string[]
 }
 
 export type Meal = {

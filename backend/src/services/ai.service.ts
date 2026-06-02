@@ -74,6 +74,23 @@ const feedbackResponseSchema = {
   }
 } as const;
 
+const inbodyOcrResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["confidence", "notes"],
+  properties: {
+    measuredAt: { type: "string" },
+    weightKg: { type: "number" },
+    heightCm: { type: "number" },
+    skeletalMuscleKg: { type: "number" },
+    bodyFatKg: { type: "number" },
+    bodyFatPercent: { type: "number" },
+    bmi: { type: "number" },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    notes: { type: "array", items: { type: "string" } }
+  }
+} as const;
+
 type StructuredJsonInput = {
   schemaName: string;
   schema: Record<string, unknown>;
@@ -162,6 +179,27 @@ export async function generateWorkoutFeedback(userId: string, workoutLogId?: str
   });
 }
 
+export async function analyzeInbodyPhoto(input: { imageBase64: string; mimeType: string }) {
+  if (!env.GEMINI_API_KEY) {
+    throw new HttpError(503, "인바디 사진 분석을 위해 GEMINI_API_KEY가 필요합니다.");
+  }
+
+  const result = await callGeminiStructuredJson({
+    schemaName: "inbody_ocr",
+    schema: inbodyOcrResponseSchema,
+    systemPrompt:
+      "You are an OCR assistant for Korean InBody result sheets. Extract only values that are visible in the image. Return JSON only. If a value is unclear, omit that optional field and add a short Korean note. measuredAt must be YYYY-MM-DD when visible.",
+    userPrompt:
+      "인바디 결과지 사진에서 측정일, 체중(kg), 키(cm), 골격근량(kg), 체지방량(kg), 체지방률(%), BMI를 추출해 주세요.",
+    image: {
+      base64: input.imageBase64,
+      mimeType: input.mimeType
+    }
+  });
+
+  return result;
+}
+
 async function callStructuredJson(input: StructuredJsonInput) {
   if (env.AI_PROVIDER === "gemini") {
     return callGeminiStructuredJson(input);
@@ -204,7 +242,7 @@ async function callOpenAiStructuredJson(input: StructuredJsonInput) {
   }
 }
 
-async function callGeminiStructuredJson(input: StructuredJsonInput) {
+async function callGeminiStructuredJson(input: StructuredJsonInput & { image?: { base64: string; mimeType: string } }) {
   if (!env.GEMINI_API_KEY) {
     throw new HttpError(503, "GEMINI_API_KEY가 설정되어 있지 않습니다.");
   }
@@ -213,6 +251,16 @@ async function callGeminiStructuredJson(input: StructuredJsonInput) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
     env.GEMINI_API_KEY
   )}`;
+
+  const parts: Array<Record<string, unknown>> = [{ text: input.userPrompt }];
+  if (input.image) {
+    parts.push({
+      inlineData: {
+        mimeType: input.image.mimeType,
+        data: input.image.base64
+      }
+    });
+  }
 
   try {
     const response = await fetch(url, {
@@ -225,11 +273,11 @@ async function callGeminiStructuredJson(input: StructuredJsonInput) {
         contents: [
           {
             role: "user",
-            parts: [{ text: input.userPrompt }]
+            parts
           }
         ],
         generationConfig: {
-          temperature: 0.3,
+          temperature: 0.1,
           responseMimeType: "application/json",
           responseSchema: toGeminiResponseSchema(input.schema)
         }

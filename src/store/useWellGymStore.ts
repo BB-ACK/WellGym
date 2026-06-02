@@ -7,18 +7,25 @@ import {
   backendWorkoutToSession
 } from '../lib/api'
 import { mockDiet, mockInbody, mockWorkouts, workoutColors } from '../data/mockData'
-import type { DietPlan, InbodyEntry, WorkoutSession } from '../types'
+import type { DietPlan, InbodyEntry, SavedWorkoutFeedback, WorkoutFeedback, WorkoutSession } from '../types'
+import type { InbodyOcrResult } from '../types'
+
+type WorkoutFormValue = Omit<WorkoutSession, 'id' | 'color' | 'pendingSync'>
 
 type WellGymState = {
   workouts: WorkoutSession[]
   inbodyEntries: InbodyEntry[]
   dietPlan: DietPlan
-  feedback: unknown | null
+  feedback: WorkoutFeedback | null
+  savedFeedbacks: SavedWorkoutFeedback[]
   isLoading: boolean
   error: string
   loadFromBackend: (token: string) => Promise<void>
-  addWorkout: (workout: Omit<WorkoutSession, 'id' | 'color' | 'pendingSync'>, token?: string | null) => Promise<void>
+  addWorkout: (workout: WorkoutFormValue, token?: string | null) => Promise<void>
+  updateWorkout: (workoutId: string, workout: WorkoutFormValue, token?: string | null) => Promise<void>
+  deleteWorkout: (workoutId: string, token?: string | null) => Promise<void>
   addInbody: (entry: Omit<InbodyEntry, 'id' | 'pendingSync'>, token?: string | null) => Promise<void>
+  analyzeInbodyPhoto: (token: string, input: { imageBase64: string; mimeType: string }) => Promise<InbodyOcrResult | null>
   generateDiet: (token: string, input: {
     goalWeightKg: number
     periodWeeks?: number
@@ -26,7 +33,8 @@ type WellGymState = {
     dietaryPreference?: string
     allergies?: string[]
   }) => Promise<void>
-  generateFeedback: (token: string, workoutLogId?: string) => Promise<void>
+  generateFeedback: (token: string, workoutLogId?: string) => Promise<WorkoutFeedback | null>
+  saveFeedback: (feedback: WorkoutFeedback, workout?: WorkoutSession) => void
   markSynced: () => void
   clearError: () => void
 }
@@ -40,6 +48,7 @@ export const useWellGymStore = create<WellGymState>()(
       inbodyEntries: [mockInbody],
       dietPlan: mockDiet,
       feedback: null,
+      savedFeedbacks: [],
       isLoading: false,
       error: '',
       loadFromBackend: async (token) => {
@@ -81,8 +90,8 @@ export const useWellGymStore = create<WellGymState>()(
         try {
           const saved = await api.createWorkout(token, localWorkout)
           set((state) => ({
-            workouts: state.workouts.map((item) =>
-              item.id === localWorkout.id ? backendWorkoutToSession(saved, state.workouts.length - 1) : item
+            workouts: state.workouts.map((item, index) =>
+              item.id === localWorkout.id ? backendWorkoutToSession(saved, index) : item
             )
           }))
         } catch (error) {
@@ -91,6 +100,60 @@ export const useWellGymStore = create<WellGymState>()(
               item.id === localWorkout.id ? { ...item, pendingSync: true } : item
             ),
             error: error instanceof Error ? error.message : '운동 기록 동기화에 실패했습니다.'
+          }))
+        }
+      },
+      updateWorkout: async (workoutId, workout, token) => {
+        const current = get().workouts.find((item) => item.id === workoutId)
+        if (!current) return
+
+        const localWorkout: WorkoutSession = {
+          ...workout,
+          id: workoutId,
+          color: current.color,
+          pendingSync: !navigator.onLine || !token
+        }
+        set((state) => ({
+          workouts: state.workouts.map((item) => (item.id === workoutId ? localWorkout : item)),
+          error: ''
+        }))
+
+        if (!token || !navigator.onLine) return
+
+        try {
+          const saved = await api.updateWorkout(token, workoutId, localWorkout)
+          set((state) => ({
+            workouts: state.workouts.map((item, index) =>
+              item.id === workoutId ? backendWorkoutToSession(saved, index) : item
+            )
+          }))
+        } catch (error) {
+          set((state) => ({
+            workouts: state.workouts.map((item) =>
+              item.id === workoutId ? { ...item, pendingSync: true } : item
+            ),
+            error: error instanceof Error ? error.message : '운동 기록 수정 동기화에 실패했습니다.'
+          }))
+        }
+      },
+      deleteWorkout: async (workoutId, token) => {
+        const current = get().workouts.find((item) => item.id === workoutId)
+        if (!current) return
+
+        set((state) => ({
+          workouts: state.workouts.filter((item) => item.id !== workoutId),
+          savedFeedbacks: state.savedFeedbacks.filter((feedback) => feedback.workoutLogId !== workoutId),
+          error: ''
+        }))
+
+        if (!token || !navigator.onLine || current.pendingSync) return
+
+        try {
+          await api.deleteWorkout(token, workoutId)
+        } catch (error) {
+          set((state) => ({
+            workouts: [...state.workouts, { ...current, pendingSync: true }],
+            error: error instanceof Error ? error.message : '운동 기록 삭제 동기화에 실패했습니다.'
           }))
         }
       },
@@ -120,6 +183,20 @@ export const useWellGymStore = create<WellGymState>()(
           }))
         }
       },
+      analyzeInbodyPhoto: async (token, input) => {
+        set({ isLoading: true, error: '' })
+        try {
+          const result = await api.analyzeInbodyPhoto(token, input)
+          set({ isLoading: false })
+          return result
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : '인바디 사진 분석에 실패했습니다.',
+            isLoading: false
+          })
+          return null
+        }
+      },
       generateDiet: async (token, input) => {
         set({ isLoading: true, error: '' })
         try {
@@ -137,12 +214,29 @@ export const useWellGymStore = create<WellGymState>()(
         try {
           const feedback = await api.feedback(token, workoutLogId)
           set({ feedback, isLoading: false })
+          return feedback
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : '운동 피드백 생성에 실패했습니다.',
             isLoading: false
           })
+          return null
         }
+      },
+      saveFeedback: (feedback, workout) => {
+        set((state) => ({
+          savedFeedbacks: [
+            {
+              ...feedback,
+              id: makeId('feedback'),
+              workoutLogId: workout?.id,
+              workoutTitle: workout?.title,
+              createdAt: new Date().toISOString()
+            },
+            ...state.savedFeedbacks
+          ],
+          error: ''
+        }))
       },
       markSynced: () => {
         set((state) => ({
@@ -154,7 +248,7 @@ export const useWellGymStore = create<WellGymState>()(
     }),
     {
       name: 'wellgym-offline-store',
-      version: 2
+      version: 3
     }
   )
 )
