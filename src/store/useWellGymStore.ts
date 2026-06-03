@@ -7,6 +7,7 @@ import {
   backendWorkoutToSession
 } from '../lib/api'
 import { mockDiet, mockInbody, mockWorkouts, workoutColors } from '../data/mockData'
+import { makeId } from '../lib/id'
 import type { DietPlan, InbodyEntry, SavedWorkoutFeedback, WorkoutFeedback, WorkoutSession } from '../types'
 import type { InbodyOcrResult } from '../types'
 
@@ -39,8 +40,6 @@ type WellGymState = {
   markSynced: () => void
   clearError: () => void
 }
-
-const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 
 export const useWellGymStore = create<WellGymState>()(
   persist(

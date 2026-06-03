@@ -1,5 +1,6 @@
 import { Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
+import { makeId } from '../../lib/id'
 import type { ExerciseLog, WorkoutSession } from '../../types'
 import { Field, TextAreaField } from '../ui/Field'
 
@@ -16,11 +17,11 @@ type WorkoutModalProps = {
 const bodyPartOptions = ['가슴', '어깨', '등', '하체', '팔', '복근']
 
 const emptyExercise = (): ExerciseLog => ({
-  id: crypto.randomUUID(),
+  id: makeId('exercise'),
   name: '',
   category: '가슴',
   equipment: '',
-  sets: [{ id: crypto.randomUUID(), kg: 0, reps: 0 }]
+  sets: [{ id: makeId('set'), kg: 0, reps: 0 }]
 })
 
 const cloneExercises = (exercises: ExerciseLog[]) =>
@@ -56,11 +57,11 @@ export function WorkoutModal({ date, workout, onClose, onSave, onDelete }: Worko
       ? cloneExercises(workout.exercises)
       : [
           {
-            id: crypto.randomUUID(),
+            id: makeId('exercise'),
             name: '숄더 프레스',
             category: '어깨',
             equipment: '덤벨',
-            sets: [{ id: crypto.randomUUID(), kg: 22, reps: 10 }]
+            sets: [{ id: makeId('set'), kg: 22, reps: 10 }]
           }
         ]
   )
@@ -82,7 +83,7 @@ export function WorkoutModal({ date, workout, onClose, onSave, onDelete }: Worko
   const addSetFromFirst = (exercise: ExerciseLog) => {
     const firstSet = exercise.sets[0] ?? { kg: 0, reps: 0 }
     updateExercise(exercise.id, {
-      sets: [...exercise.sets, { id: crypto.randomUUID(), kg: firstSet.kg, reps: firstSet.reps }]
+      sets: [...exercise.sets, { id: makeId('set'), kg: firstSet.kg, reps: firstSet.reps }]
     })
   }
 
